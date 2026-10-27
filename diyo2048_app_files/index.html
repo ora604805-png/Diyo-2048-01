@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Diyo 2048</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1b1220">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+  :root{--bg:#1b1220;--panel:#2a1c33;--cell:#3a2847;--text:#fdf3e3;--accent:#f4a300}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:radial-gradient(circle at 50% 0%,#33204a 0%,var(--bg) 60%);color:var(--text);font-family:system-ui,Arial,sans-serif;touch-action:none;overscroll-behavior:none;user-select:none;-webkit-user-select:none}
+  .wrap{max-width:460px;margin:0 auto;padding:12px 16px 90px;display:flex;flex-direction:column;gap:10px}
+  header{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  h1{margin:0;font-size:28px;color:var(--accent);letter-spacing:1px;text-shadow:0 0 14px rgba(244,163,0,.45)}
+  h1 small{display:block;font-size:12px;color:#c9b6d6;font-weight:400;letter-spacing:0;text-shadow:none}
+  .scores{display:flex;gap:8px}
+  .box{background:var(--panel);border-radius:8px;padding:6px 12px;text-align:center;min-width:64px}
+  .box span{display:block;font-size:11px;color:#c9b6d6;text-transform:uppercase}
+  .box b{font-size:20px}
+  .tabs{display:flex;gap:8px}
+  .tab{flex:1;background:var(--panel);color:#c9b6d6;border:1px solid #4b3660}
+  .tab.on{background:var(--accent);color:#2b1a00;border-color:var(--accent)}
+  .bar{display:flex;gap:6px;flex-wrap:wrap}
+  button{background:var(--accent);color:#2b1a00;border:0;border-radius:8px;padding:10px 12px;font-weight:700;font-size:13px;font-family:inherit}
+  button:active{transform:scale(.96)}
+  button.alt{background:var(--panel);color:var(--text);border:1px solid #4b3660}
+  button:disabled{opacity:.4}
+
+  #board{position:relative;background:var(--panel);border-radius:12px;aspect-ratio:1/1;width:100%;box-shadow:0 6px 24px rgba(0,0,0,.4)}
+  #grid{position:absolute;inset:0;padding:10px;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(4,1fr);gap:10px}
+  #grid div{background:var(--cell);border-radius:8px}
+  #tiles{position:absolute;inset:0;pointer-events:none}
+  .tile{position:absolute;left:0;top:0;transition:transform .12s ease-in-out}
+  .inner{width:100%;height:100%;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800}
+  .appear{animation:appear .22s ease .08s backwards}
+  .pop{animation:pop .22s ease}
+  @keyframes appear{0%{transform:scale(0)}100%{transform:scale(1)}}
+  @keyframes pop{0%{transform:scale(1)}50%{transform:scale(1.25)}100%{transform:scale(1)}}
+  .v2{background:#ffe8b0;color:#5a3b00}.v4{background:#ffd37a;color:#5a3b00}.v8{background:#ffb347;color:#fff}
+  .v16{background:#ff8c42;color:#fff}.v32{background:#f4623a;color:#fff}.v64{background:#dc143c;color:#fff;box-shadow:0 0 10px #dc143c88}
+  .v128{background:#b8d86b;color:#2b3a00;font-size:.85em;box-shadow:0 0 14px #b8d86b99}
+  .v256{background:#7cc576;color:#fff;font-size:.85em;box-shadow:0 0 16px #7cc576aa}
+  .v512{background:#3fa9a0;color:#fff;font-size:.85em;box-shadow:0 0 18px #3fa9a0aa}
+  .v1024{background:#3a78c9;color:#fff;font-size:.7em;box-shadow:0 0 20px #3a78c9bb}
+  .v2048{background:#8a4fd1;color:#fff;font-size:.7em;box-shadow:0 0 26px #c58bff}
+  .vbig{background:#111;color:var(--accent);font-size:.6em;box-shadow:0 0 26px var(--accent)}
+
+  .overlay{position:fixed;inset:0;background:rgba(10,5,15,.88);display:none;align-items:center;justify-content:center;z-index:20;padding:20px}
+  .overlay.show{display:flex}
+  .modal{background:var(--panel);border-radius:14px;padding:22px;max-width:340px;width:100%;text-align:center;animation:appear .2s ease}
+  .modal h2{margin:0 0 8px;color:var(--accent)}
+  .modal p{color:#d9c8e6;margin:6px 0 14px;white-space:pre-line}
+  .modal .row{display:flex;flex-direction:column;gap:8px}
+  .adbox{border:2px dashed #7a5aa0;border-radius:10px;padding:26px 10px;margin:10px 0;color:#c9b6d6}
+  #banner{position:fixed;left:0;right:0;bottom:0;height:60px;background:#120a18;border-top:1px solid #3a2847;display:flex;align-items:center;justify-content:center;color:#7a6a88;font-size:12px;z-index:5}
+  .tip{font-size:12px;color:#a994b8;text-align:center}
+  #toast{position:fixed;left:50%;bottom:76px;transform:translateX(-50%) translateY(20px);background:#fff;color:#2b1a00;padding:10px 16px;border-radius:20px;font-weight:700;font-size:14px;opacity:0;transition:.25s;z-index:30;pointer-events:none;white-space:nowrap}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .howto{text-align:left;max-height:70vh;overflow-y:auto;touch-action:pan-y}
+  .howto h3{margin:14px 0 6px;font-size:14px;color:var(--accent)}
+  .howto ol,.howto ul{margin:0;padding-left:20px;color:#e6d8f0;font-size:14px;line-height:1.5}
+  .howto li{margin-bottom:6px}
+  .howto .np{display:block;color:#a994b8;font-size:12px}
+  .demo{display:flex;align-items:center;justify-content:center;gap:8px;margin:10px 0;font-size:20px;color:#c9b6d6}
+  .mini{display:inline-flex;width:40px;height:40px;border-radius:6px;align-items:center;justify-content:center;font-weight:800;font-size:18px}
+  #fx{position:fixed;inset:0;pointer-events:none;z-index:25;overflow:hidden}
+  .conf{position:absolute;top:-30px;font-size:24px;animation:fall linear forwards}
+  @keyframes fall{to{transform:translateY(110vh) rotate(540deg);opacity:.8}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Diyo 2048<small>Merge the lights of Tihar</small></h1>
+    <div class="scores">
+      <div class="box"><span>Score</span><b id="score">0</b></div>
+      <div class="box"><span id="bestLabel">Best</span><b id="best">0</b></div>
+    </div>
+  </header>
+  <div class="tabs">
+    <button id="tabClassic" class="tab on">Classic</button>
+    <button id="tabDaily" class="tab">📅 Daily Challenge</button>
+  </div>
+  <div class="bar">
+    <button id="helpBtn" class="alt">❓ How to Play</button>
+    <button id="newBtn">New Game</button>
+    <button id="undoBtn" class="alt">Undo (ad)</button>
+    <button id="shareBtn" class="alt">Share</button>
+    <button id="sndBtn" class="alt">🔊</button>
+    <button id="numBtn" class="alt">नेपाली अंक</button>
+  </div>
+  <div id="board"><div id="grid"></div><div id="tiles"></div></div>
+  <div class="tip" id="info"></div>
+</div>
+
+<div id="banner">[ BANNER AD SLOT 320x50 ]</div>
+<div id="toast"></div>
+<div id="fx"></div>
+
+<div class="overlay" id="endOv">
+  <div class="modal">
+    <h2 id="endTitle">Game Over</h2>
+    <p id="endMsg"></p>
+    <div class="row">
+      <button id="reviveBtn">Watch ad to continue (clear 2 small tiles)</button>
+      <button id="shareBtn2" class="alt">Share my score</button>
+      <button id="againBtn" class="alt">Play Again</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="helpOv">
+  <div class="modal">
+    <h2>🪔 How to Play</h2>
+    <div class="howto">
+      <h3>The goal</h3>
+      <ul><li>Merge numbered tiles to make the <b>2048</b> tile. Keep going after that for a higher score!
+        <span class="np">लक्ष्य: टाइलहरू जोडेर २०४८ बनाउनुहोस्।</span></li></ul>
+
+      <h3>How to move</h3>
+      <ol>
+        <li><b>Swipe</b> up, down, left or right. All tiles slide that way as far as they can. (On a computer, use the arrow keys.)
+          <span class="np">स्वाइप गर्नुहोस् — सबै टाइलहरू त्यतै सर्छन्।</span></li>
+        <li>When <b>two tiles with the same number</b> touch, they merge into one. The new tile is the total.
+          <span class="np">एउटै नम्बरका दुई टाइल जोडिएर एउटा हुन्छ।</span></li>
+      </ol>
+      <div class="demo"><span class="mini v2">2</span><span class="mini v2">2</span> → <span class="mini v4">4</span></div>
+      <div class="demo"><span class="mini v8">8</span><span class="mini v8">8</span> → <span class="mini v16">16</span></div>
+      <ol start="3">
+        <li>After every move, a new tile (2 or 4) appears. The board fills up, so merge often!
+          <span class="np">हरेक चाल पछि नयाँ टाइल आउँछ।</span></li>
+        <li><b>Game over</b> when the board is full and no tiles can merge.
+          <span class="np">बोर्ड भरिए र जोड्न नमिले खेल सकिन्छ।</span></li>
+      </ol>
+
+      <h3>Tips to score high</h3>
+      <ul>
+        <li>Keep your biggest tile in a <b>corner</b> and don't move it.</li>
+        <li>Try to use only 3 directions. Avoid the 4th unless you have to.</li>
+        <li>Build a row of big tiles in order, like 128, 64, 32, 16.</li>
+        <li>Plan one move ahead before you swipe.</li>
+      </ul>
+
+      <h3>Game modes and buttons</h3>
+      <ul>
+        <li><b>Classic:</b> play as long as you like and beat your best score.</li>
+        <li><b>📅 Daily Challenge:</b> everyone gets the same tiles today. Play every day to grow your 🔥 streak.</li>
+        <li><b>Undo (ad):</b> watch a short ad to take back your last move.</li>
+        <li><b>Game over?</b> Watch an ad to clear 2 small tiles and keep playing.</li>
+        <li><b>Share:</b> send your score card to friends and challenge them.</li>
+        <li><b>🔊 / नेपाली अंक:</b> turn sound on or off, or show Nepali numbers.</li>
+      </ul>
+    </div>
+    <div class="row" style="margin-top:14px"><button id="helpClose">Got it, let's play!</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="adOv">
+  <div class="modal">
+    <h2>Advertisement</h2>
+    <div class="adbox" id="adText">Ad placeholder</div>
+    <button id="adClose" disabled>Please wait...</button>
+  </div>
+</div>
+
+<script>
+/* ========= AD CONFIG =========
+   Replace these with your real ad SDK calls (GameDistribution / Poki / CrazyGames / AdSense for Games). */
+const Ads = {
+  gamesSinceInterstitial: 0,
+  show(kind, done){
+    const ov = document.getElementById('adOv'), btn = document.getElementById('adClose'), txt = document.getElementById('adText');
+    txt.textContent = kind === 'rewarded' ? '[ REWARDED VIDEO AD PLACEHOLDER ]' : '[ INTERSTITIAL AD PLACEHOLDER ]';
+    ov.classList.add('show'); btn.disabled = true;
+    let s = kind === 'rewarded' ? 3 : 2; btn.textContent = 'Close in ' + s;
+    const t = setInterval(()=>{ s--; if(s>0){btn.textContent='Close in '+s}else{clearInterval(t);btn.disabled=false;btn.textContent=kind==='rewarded'?'Claim reward':'Close'} },1000);
+    btn.onclick = ()=>{ ov.classList.remove('show'); done && done(); };
+  },
+  rewarded(cb){ this.show('rewarded', cb); },
+  maybeInterstitial(cb){
+    this.gamesSinceInterstitial++;
+    if(this.gamesSinceInterstitial >= 3){ this.gamesSinceInterstitial = 0; this.show('interstitial', cb); }
+    else cb();
+  }
+};
+
+/* ========= SETTINGS ========= */
+const SHARE_URL = 'https://ora604805-png.github.io/Diyo-2048/';   // published game link
+const DAILY_START = '2026-10-26'; // Daily #1
+
+/* ========= HELPERS ========= */
+const $ = id => document.getElementById(id);
+const N = 4;
+function store(k, v){ try{ if(v===undefined) return localStorage.getItem(k); localStorage.setItem(k, v); }catch(e){ return null; } }
+function np(n){ return String(n).replace(/\d/g, d => '०१२३४५६७८९'[d]); }
+let nepali = store('diyo_np') === '1';
+const fmt = n => nepali ? np(n) : n;
+function keyOf(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+const todayKey = () => keyOf(new Date());
+function dayNumber(){ return Math.floor((new Date(todayKey()+'T00:00:00') - new Date(DAILY_START+'T00:00:00'))/86400000)+1; }
+function hashStr(s){ let h=2166136261; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); } return h>>>0; }
+
+/* ========= SOUND (synthesized, no files) ========= */
+let ac, sound = store('diyo_snd') !== '0';
+function audio(){
+  if(!ac){ try{ ac = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
+  if(ac && ac.state==='suspended') ac.resume();
+  return ac;
+}
+function tone(f, d=.12, type='sine', vol=.15, delay=0, slideTo){
+  if(!sound) return; const a = audio(); if(!a) return;
+  const t0 = a.currentTime + delay, o = a.createOscillator(), g = a.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t0);
+  if(slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t0 + d);
+  g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(.001, t0 + d);
+  o.connect(g); g.connect(a.destination); o.start(t0); o.stop(t0 + d + .02);
+}
+const SCALE = [262,294,330,392,440,523,587,659,784,880,988,1047];
+function sMove(){ tone(180,.06,'triangle',.06,0,140); }
+function sMerge(v){
+  const f = SCALE[Math.min(Math.log2(v)-2, SCALE.length-1)] || 262;
+  tone(f,.2,'sine',.22); tone(f*2,.14,'triangle',.08,.03);
+}
+function sWin(){ [523,659,784,1047,1319].forEach((f,i)=>tone(f,.25,'triangle',.18,i*.09)); }
+function sOver(){ [392,330,262,196].forEach((f,i)=>tone(f,.28,'sawtooth',.1,i*.14)); }
+function buzz(ms){ try{ navigator.vibrate && navigator.vibrate(ms); }catch(e){} }
+
+/* ========= TOAST + CONFETTI ========= */
+let toastT;
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2000); }
+function confetti(){
+  const fx=$('fx'), em=['🪔','🌼','✨','🎉','🏵️'];
+  for(let i=0;i<32;i++){
+    const s=document.createElement('span'); s.className='conf'; s.textContent=em[i%em.length];
+    s.style.left=Math.random()*100+'%'; s.style.animationDuration=(1.6+Math.random()*1.6)+'s'; s.style.animationDelay=(Math.random()*.4)+'s';
+    fx.appendChild(s); setTimeout(()=>s.remove(),3800);
+  }
+}
+
+/* ========= STATE ========= */
+let tiles=[], nextId=1, score=0, prev=null, won=false, over=false, mode='classic';
+let celebrated=new Set(), dailyCounted=false, rs=1, deadTimer;
+const bests = { classic: +store('diyo_best_classic')||+store('diyo2048best')||0, daily: 0 };
+function loadDailyBest(){ bests.daily = +store('diyo_daily_'+todayKey()) || 0; }
+
+function rand(){
+  if(mode!=='daily') return Math.random();
+  rs |= 0; rs = rs + 0x6D2B79F5 | 0;
+  let t = Math.imul(rs ^ rs >>> 15, 1 | rs);
+  t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+  return ((t ^ t >>> 14) >>> 0) / 4294967296;
+}
+const live = () => tiles.filter(t=>!t.dead);
+function cellMap(){ const m=Array(N*N).fill(null); live().forEach(t=>m[t.r*N+t.c]=t); return m; }
+function spawn(){
+  const m=cellMap(), e=[]; m.forEach((t,i)=>{ if(!t) e.push(i); });
+  if(!e.length) return;
+  const k = e[Math.floor(rand()*e.length)], v = rand()<0.9 ? 2 : 4;
+  tiles.push({id:nextId++, v, r:Math.floor(k/N), c:k%N, isNew:true});
+}
+function canMove(){
+  const m=cellMap(); if(m.includes(null)) return true;
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+    const v=m[r*N+c].v;
+    if(c<N-1 && v===m[r*N+c+1].v) return true;
+    if(r<N-1 && v===m[(r+1)*N+c].v) return true;
+  }
+  return false;
+}
+
+/* ========= GAME FLOW ========= */
+function newGame(){
+  tiles=[]; score=0; prev=null; won=false; over=false; celebrated=new Set(); dailyCounted=false;
+  if(mode==='daily'){ rs = hashStr(todayKey()); loadDailyBest(); }
+  spawn(); spawn(); render(); updateHeader();
+}
+function setMode(m){
+  mode = m;
+  $('tabClassic').classList.toggle('on', m==='classic');
+  $('tabDaily').classList.toggle('on', m==='daily');
+  newGame();
+}
+function lineIdx(dir, i){
+  const a=[0,1,2,3];
+  if(dir==='left')  return a.map(c=>i*N+c);
+  if(dir==='right') return a.map(c=>i*N+(N-1-c));
+  if(dir==='up')    return a.map(r=>r*N+i);
+  return a.map(r=>(N-1-r)*N+i);
+}
+function cleanDead(){ tiles = tiles.filter(t=>!t.dead); }
+
+function move(dir){
+  if(over || $('helpOv').classList.contains('show')) return;
+  clearTimeout(deadTimer); cleanDead();
+  tiles.forEach(t=>{ t.merged=false; t.pop=false; t.isNew=false; });
+  const snapshot = tiles.map(t=>({id:t.id,v:t.v,r:t.r,c:t.c})), snapScore=score, snapRs=rs;
+  let moved=false, gained=0; const merges=[];
+  const m = cellMap();
+  for(let i=0;i<N;i++){
+    const idx = lineIdx(dir,i);
+    const line = idx.map(k=>m[k]).filter(Boolean);
+    let pos=0, last=null;
+    for(const t of line){
+      if(last && last.v===t.v && !last.merged){
+        t.r=last.r; t.c=last.c; t.dead=true;
+        last.v*=2; last.merged=true; last.pop=true; gained+=last.v; merges.push(last.v); moved=true;
+      } else {
+        const k=idx[pos], nr=Math.floor(k/N), nc=k%N;
+        if(t.r!==nr || t.c!==nc){ moved=true; t.r=nr; t.c=nc; }
+        pos++; last=t;
+      }
+    }
+  }
+  if(!moved) return;
+  prev = {tiles:snapshot, score:snapScore, rs:snapRs};
+  score += gained;
+  spawn();
+  if(mode==='daily' && !dailyCounted){ dailyCounted=true; bumpStreak(); }
+  if(score > bests[mode]){
+    bests[mode]=score;
+    store(mode==='daily' ? 'diyo_daily_'+todayKey() : 'diyo_best_classic', score);
+  }
+  render(); updateHeader();
+  deadTimer = setTimeout(()=>{ cleanDead(); render(); }, 140);
+
+  // feedback
+  if(merges.length){ sMerge(Math.max(...merges)); buzz(merges.length>1?25:12); } else { sMove(); }
+  for(const v of merges){
+    if(v>=512 && !celebrated.has(v)){ celebrated.add(v); sWin(); confetti(); toast('🪔 '+fmt(v)+'!'); buzz([30,40,30]); }
+  }
+  if(!won && live().some(t=>t.v>=2048)){ won=true; showEnd('You made 2048! 🎉','Amazing! Share it with your friends, or keep playing for more.',false); return; }
+  if(!canMove()){ over=true; sOver(); buzz(200); showEnd(mode==='daily'?'Daily #'+dayNumber()+' finished':'Game Over', shareLines().join('\n'), true); }
+}
+
+/* ========= STREAK ========= */
+function getStreak(){ try{ return JSON.parse(store('diyo_streak')) || {last:'',count:0}; }catch(e){ return {last:'',count:0}; } }
+function bumpStreak(){
+  const s=getStreak(), today=todayKey();
+  if(s.last===today) return;
+  const y=new Date(); y.setDate(y.getDate()-1);
+  s.count = (s.last===keyOf(y)) ? s.count+1 : 1; s.last=today;
+  store('diyo_streak', JSON.stringify(s));
+}
+function streakNow(){
+  const s=getStreak(), y=new Date(); y.setDate(y.getDate()-1);
+  return (s.last===todayKey() || s.last===keyOf(y)) ? s.count : 0;
+}
+
+/* ========= RENDER ========= */
+const boardEl=$('board'), tilesEl=$('tiles'), els=new Map();
+(function(){ const g=$('grid'); for(let i=0;i<16;i++) g.appendChild(document.createElement('div')); })();
+function cls(v){ return 'inner v' + (v<=2048 ? v : 'big'); }
+function place(el,t,cs,pad,gap){
+  el.style.width=el.style.height=cs+'px'; el.style.fontSize=(cs*0.42)+'px';
+  el.style.transform='translate('+(pad+t.c*(cs+gap))+'px,'+(pad+t.r*(cs+gap))+'px)';
+}
+function render(){
+  const pad=10, gap=10, cs=(boardEl.clientWidth-2*pad-3*gap)/4;
+  const ids=new Set(tiles.map(t=>t.id));
+  for(const [id,el] of els){ if(!ids.has(id)){ el.remove(); els.delete(id); } }
+  for(const t of tiles){
+    let el=els.get(t.id);
+    if(!el){
+      el=document.createElement('div'); el.className='tile';
+      el.appendChild(document.createElement('div'));
+      el.style.transition='none'; place(el,t,cs,pad,gap); tilesEl.appendChild(el); void el.offsetWidth; el.style.transition='';
+      els.set(t.id,el);
+    }
+    place(el,t,cs,pad,gap);
+    el.style.zIndex = t.dead ? 1 : 2;
+    const inner=el.firstChild;
+    inner.className=cls(t.v); inner.textContent=fmt(t.v);
+    if(t.isNew){ inner.classList.add('appear'); t.isNew=false; }
+    if(t.pop){ inner.classList.remove('pop'); void inner.offsetWidth; inner.classList.add('pop'); t.pop=false; }
+  }
+}
+function updateHeader(){
+  $('score').textContent=fmt(score);
+  $('best').textContent=fmt(bests[mode]);
+  $('bestLabel').textContent = mode==='daily' ? 'Today' : 'Best';
+  $('undoBtn').disabled=!prev;
+  $('numBtn').textContent = nepali ? 'English' : 'नेपाली अंक';
+  $('sndBtn').textContent = sound ? '🔊' : '🔇';
+  $('info').textContent = mode==='daily'
+    ? '📅 Daily #'+dayNumber()+' · same tiles for everyone today · 🔥 Streak: '+streakNow()
+    : 'Swipe to move tiles. Merge to reach 2048!';
+}
+
+/* ========= SHARE ========= */
+function emojiFor(v){
+  if(!v) return '⬛'; if(v<=4) return '🟨'; if(v<=16) return '🟧'; if(v<=64) return '🟥';
+  if(v<=256) return '🟩'; if(v<=1024) return '🟦'; return '🟪';
+}
+function shareLines(){
+  const m=cellMap(), maxT=Math.max(0,...live().map(t=>t.v));
+  const head = mode==='daily' ? '🪔 Diyo 2048 Daily #'+dayNumber() : '🪔 Diyo 2048';
+  const lines=[head, 'Score: '+score+' · Best tile: '+maxT];
+  if(mode==='daily') lines.push('🔥 Streak: '+streakNow());
+  for(let r=0;r<N;r++) lines.push(m.slice(r*N,r*N+N).map(t=>emojiFor(t&&t.v)).join(''));
+  return lines;
+}
+function fallbackCopy(text){
+  const ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); }catch(e){} ta.remove();
+}
+async function share(){
+  const url = SHARE_URL || (location.protocol.startsWith('http') ? location.href.split('#')[0] : '');
+  const text = shareLines().concat(url ? ['Beat me: '+url] : ['Can you beat me?']).join('\n');
+  try{ if(navigator.share){ await navigator.share({text}); return; } }catch(e){ if(e && e.name==='AbortError') return; }
+  try{ if(navigator.clipboard && navigator.clipboard.writeText){ await navigator.clipboard.writeText(text); } else fallbackCopy(text); }catch(e){ fallbackCopy(text); }
+  toast('Score copied! Paste it anywhere 📋');
+}
+
+/* ========= END MODAL + BUTTONS ========= */
+function showEnd(title,msg,canRevive){
+  $('endTitle').textContent=title; $('endMsg').textContent=msg;
+  $('reviveBtn').style.display = canRevive ? '' : 'none';
+  $('againBtn').textContent = canRevive ? 'Play Again' : 'Keep Playing';
+  $('endOv').classList.add('show');
+}
+$('newBtn').onclick = () => { audio(); Ads.maybeInterstitial(newGame); };
+$('againBtn').onclick = () => { $('endOv').classList.remove('show'); if(over) Ads.maybeInterstitial(newGame); };
+$('undoBtn').onclick = () => {
+  if(!prev) return;
+  Ads.rewarded(()=>{
+    clearTimeout(deadTimer); cleanDead();
+    tiles = prev.tiles.map(t=>({...t})); score = prev.score; rs = prev.rs; prev = null; over = false;
+    render(); updateHeader();
+  });
+};
+$('reviveBtn').onclick = () => {
+  $('endOv').classList.remove('show');
+  Ads.rewarded(()=>{
+    const small = live().sort((a,b)=>a.v-b.v).slice(0,2).map(t=>t.id);
+    tiles = tiles.filter(t=>!small.includes(t.id));
+    over=false; prev=null; render(); updateHeader();
+  });
+};
+$('helpBtn').onclick = () => $('helpOv').classList.add('show');
+$('helpClose').onclick = () => { $('helpOv').classList.remove('show'); store('diyo_seen_help','1'); };
+$('shareBtn').onclick = share;
+$('shareBtn2').onclick = share;
+$('numBtn').onclick = () => { nepali=!nepali; store('diyo_np', nepali?'1':'0'); render(); updateHeader(); };
+$('sndBtn').onclick = () => { sound=!sound; store('diyo_snd', sound?'1':'0'); if(sound){ audio(); tone(660,.1); } updateHeader(); };
+$('tabClassic').onclick = () => { if(mode!=='classic') setMode('classic'); };
+$('tabDaily').onclick = () => { if(mode!=='daily') setMode('daily'); };
+
+/* ========= INPUT ========= */
+document.addEventListener('keydown', e => {
+  const d={ArrowLeft:'left',ArrowRight:'right',ArrowUp:'up',ArrowDown:'down'}[e.key];
+  if(d){ e.preventDefault(); audio(); move(d); }
+});
+let sx=null, sy=null;
+document.addEventListener('touchstart', e => { sx=e.touches[0].clientX; sy=e.touches[0].clientY; }, {passive:true});
+document.addEventListener('touchend', e => {
+  if(sx==null) return;
+  const dx=e.changedTouches[0].clientX-sx, dy=e.changedTouches[0].clientY-sy; sx=null;
+  if(Math.max(Math.abs(dx),Math.abs(dy))<24) return;
+  audio();
+  if(Math.abs(dx)>Math.abs(dy)) move(dx>0?'right':'left'); else move(dy>0?'down':'up');
+}, {passive:true});
+window.addEventListener('resize', render);
+
+newGame();
+if(store('diyo_seen_help') !== '1') $('helpOv').classList.add('show');   // show once for new players
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+}
+</script>
+</body>
+</html>
